@@ -12,11 +12,9 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.os.Vibrator;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-
 import com.snavi.makecake.Activities.MixActivity;
 import com.snavi.makecake.R;
 import com.snavi.makecake.sensorListeners.ProximitySensorListener;
@@ -33,10 +31,11 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
     private static final int TIME_BETWEEN_INGREDIENT_CHANGES = 1000;
     private static final int COLLECTED_INGREDIENT_SIZE       = 300;
     private static final int COLLECTED_BACKGROUND_OPACITY    = 100;
-    private static final int COLLECETED_BACKGROUND_COLOR     = Color.BLUE;
+    private static final int COLLECTED_BACKGROUND_COLOR      = Color.BLUE;
     private static final int COLLECTED_BACKGROUND_MARGIN     = 20;
     private static final int COLLECTED_BACKGROUND_CORNER     = 30;
     private static final int VIBRATION_TIME_WHEN_BAD_INGREDIENT = 500;
+    private static final double NEW_INGREDIENT_ALL_PERCENTAGE   = 0.7;
 
     public static final int[] ALL_INGREDIENTS =
             {
@@ -57,16 +56,16 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
 
 
     // fields /////////////////////////////////////////////////////////////////////////////////////
-    private GameThread    m_gameThread;
-    private Context       m_context;
+    private GameThread m_gameThread;
+    private Context    m_context;
 
     private int m_screenWidth;
     private int m_screenHeight;
 
     private ArrayList<Integer> m_requiredIngredientsImages;    // list of ingredients, that player must collect
-    private ArrayList<Integer> m_mixImages;
+    private ArrayList<Integer> m_mixImages;                    // images for mix animation for current cake
 
-    private int m_finalImg;
+    private int m_finalImg;                                     // ready cake image
 
     private Paint m_ingredientPaint;
     private Paint m_collectedBackgroundPaint;
@@ -85,8 +84,8 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
     private int m_currIngredientIdx;
     private long m_lastIngredientChange;
     private volatile ArrayList<Integer> m_collectedIngredients;
-    private boolean m_badChoice;
-    private long m_displayBadStart;
+    private boolean m_badChoice;                                    // true -> player selected bad ingredient
+    private long m_displayBadStart;                                 // first time when kitchen_red wast displayed
 
 
     public ChooseIngredientsView(Context context, ArrayList<Integer> ingredientsImages,
@@ -134,12 +133,12 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
 
     public void init(Context context)
     {
-        m_context   = context;
         getHolder().addCallback(this);
         setFocusable(true);
+        m_context = context;
         m_ingredientPaint = new Paint();
         m_collectedBackgroundPaint = new Paint();
-        m_collectedBackgroundPaint.setColor(COLLECETED_BACKGROUND_COLOR);
+        m_collectedBackgroundPaint.setColor(COLLECTED_BACKGROUND_COLOR);
         m_collectedBackgroundPaint.setAlpha(COLLECTED_BACKGROUND_OPACITY);
         m_vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
         m_collectedIngredients = new ArrayList<>();
@@ -166,16 +165,24 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
     public void tick()
     {
         tickIngredient();
-        if (m_proximitySensorListener.isClose()) catchIngredient();
+        if (m_proximitySensorListener.isClose())
+            catchIngredient();
         if (m_requiredIngredientsImages.isEmpty())
         {
-            m_gameThread.setRunning(false);
-            Intent intent = new Intent(m_context, MixActivity.class);
-            intent.putIntegerArrayListExtra(MixActivity.PHOTOS_KEY, m_mixImages);
-            intent.putExtra(MixActivity.FINAL_PHOTO_KEY, m_finalImg);
-            m_context.startActivity(intent);
-            ((Activity) m_context).finish();
+            endChoosing();
         }
+    }
+
+
+
+    private void endChoosing()
+    {
+        m_gameThread.setRunning(false);
+        Intent intent = new Intent(m_context, MixActivity.class);
+        intent.putIntegerArrayListExtra(MixActivity.PHOTOS_KEY, m_mixImages);
+        intent.putExtra(MixActivity.FINAL_PHOTO_KEY, m_finalImg);
+        m_context.startActivity(intent);
+        ((Activity) m_context).finish();
     }
 
 
@@ -211,8 +218,24 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
 
     private void chooseNewIngredient()
     {
-        m_currIngredientIdx = randomIngredientIdx();
+        int randIngrAll     = randomIngredientIdx();
+        int randIngrReqir   = (int) (Math.random() * m_requiredIngredientsImages.size());
+        m_currIngredientIdx = Math.random() < NEW_INGREDIENT_ALL_PERCENTAGE ?
+                randIngrAll : indexOfIngredient(m_requiredIngredientsImages.get(randIngrReqir));
         m_ingredientX       = -INGREDIENT_SIZE;
+    }
+
+
+
+    private int indexOfIngredient(int ingredient)
+    {
+        for (int i = 0; i < ALL_INGREDIENTS.length; ++i)
+        {
+            if (ALL_INGREDIENTS[i] == ingredient)
+                return i;
+        }
+
+        return -1;
     }
 
 
@@ -220,23 +243,35 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
     private void catchIngredient()
     {
         if (m_requiredIngredientsImages.contains(ALL_INGREDIENTS[m_currIngredientIdx]))
-        {
-            m_requiredIngredientsImages.remove(Integer.valueOf(ALL_INGREDIENTS[m_currIngredientIdx]));
-            m_collectedIngredients.add(ALL_INGREDIENTS[m_currIngredientIdx]);
-        }
+            correctCatch();
         else
-        {
-            if (m_collectedIngredients.contains(ALL_INGREDIENTS[m_currIngredientIdx]))  // when player collects again, before it disappears
-                return;
+            badCatch();
+    }
 
-            m_badChoice = true;
-            m_displayBadStart = System.currentTimeMillis();
-            m_vibrator.vibrate(VIBRATION_TIME_WHEN_BAD_INGREDIENT);
-            if (!m_collectedIngredients.isEmpty())
-            {
-                int last = m_collectedIngredients.remove(m_collectedIngredients.size() - 1);
-                m_requiredIngredientsImages.add(last);
-            }
+
+
+    private void correctCatch()
+    {
+        m_requiredIngredientsImages.remove(Integer.valueOf(ALL_INGREDIENTS[m_currIngredientIdx]));
+        m_collectedIngredients.add(ALL_INGREDIENTS[m_currIngredientIdx]);
+    }
+
+
+
+    private void badCatch()
+    {
+        if (m_collectedIngredients.contains(ALL_INGREDIENTS[m_currIngredientIdx]))  // when player collects again, before current disappears
+            return;
+
+        m_badChoice       = true;
+        m_displayBadStart = System.currentTimeMillis();
+        m_vibrator.vibrate(VIBRATION_TIME_WHEN_BAD_INGREDIENT);
+
+        // remove from collected
+        if (!m_collectedIngredients.isEmpty())
+        {
+            int last = m_collectedIngredients.remove(m_collectedIngredients.size() - 1);
+            m_requiredIngredientsImages.add(last);
         }
     }
 
@@ -250,18 +285,14 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
     {
         if (m_badChoice)
         {
-            canvas.drawBitmap(m_kitchenRed,
-                    0, 0, new Paint());
+            canvas.drawBitmap(m_kitchenRed,0, 0, new Paint());
             if (System.currentTimeMillis() - m_displayBadStart > BAD_CHOICE_DISPLAY_TIME)
             {
                 m_badChoice = false;
             }
         }
         else
-        {
-            canvas.drawBitmap(m_kitchen,
-                    0, 0, new Paint());
-        }
+            canvas.drawBitmap(m_kitchen,0, 0, new Paint());
     }
 
 
@@ -338,7 +369,7 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
 
 
 
-    // Stuff to make it work /////////////////////////////////////////////////////////////////////
+    // Surface ////////////////////////////////////////////////////////////////////////////////////
 
 
 
@@ -375,9 +406,6 @@ public class ChooseIngredientsView extends SurfaceView implements SurfaceHolder.
             e.printStackTrace();
         }
     }
-
-
-
 
 }
 

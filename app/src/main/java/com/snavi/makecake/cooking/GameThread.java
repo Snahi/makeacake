@@ -10,6 +10,7 @@ public class GameThread extends Thread {
     private static final int SLEEP_TIME = 20;
 
 
+    // fields //////////////////////////////////////////////////////////////////////////////////////
     private boolean                 m_isRunning;
     private ChooseIngredientsView   m_gameSurface;
     private SurfaceHolder           m_surfaceHolder;
@@ -28,32 +29,48 @@ public class GameThread extends Thread {
     {
         while(m_isRunning)
         {
-            Canvas canvas= null;
-            try
-            {
-                canvas = m_surfaceHolder.lockCanvas();
+            tick();
+            sleep();
+        }
+    }
 
-                synchronized (this)
-                {
-                    this.m_gameSurface.tick();
-                    this.m_gameSurface.render(canvas);
-                }
-            }
-            catch(Exception e) {
-                // do nothing}
-            }
-            finally
-            {
-                if(canvas!= null)
-                    this.m_surfaceHolder.unlockCanvasAndPost(canvas);
-            }
 
-            try
+
+    private void tick()
+    {
+        Canvas canvas= null;
+        try
+        {
+            canvas = m_surfaceHolder.lockCanvas();
+
+            synchronized (this)
             {
-                sleep(SLEEP_TIME);
-            } catch(InterruptedException e) {
-                // do nothing
+                this.m_gameSurface.tick();
+                this.m_gameSurface.render(canvas);
             }
+        }
+        catch(Exception e)
+        {
+            // do nothing
+        }
+        finally
+        {
+            if(canvas!= null)
+                this.m_surfaceHolder.unlockCanvasAndPost(canvas);
+        }
+    }
+
+
+
+    private void sleep()
+    {
+        try
+        {
+            sleep(SLEEP_TIME);
+        }
+        catch(InterruptedException e)
+        {
+            // do nothing
         }
     }
 

@@ -6,10 +6,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.util.Log;
-
-import com.snavi.makecake.Activities.MixActivity;
-
 import java.util.ArrayList;
 
 public class ShakeSensor implements SensorEventListener {
@@ -20,8 +16,7 @@ public class ShakeSensor implements SensorEventListener {
     private static final int MIN_ACC_DIFFERENCE   = 5;
 
 
-    private SensorManager m_sensorManager;
-    private Sensor        m_accelerometer;
+    // fields /////////////////////////////////////////////////////////////////////////////////////
     private boolean       m_isShaking;
     private long          m_timeOfLastShake;
     private float         m_lastRead0;
@@ -34,11 +29,15 @@ public class ShakeSensor implements SensorEventListener {
 
     public ShakeSensor(Context context)
     {
-        m_sensorManager = (SensorManager) context.getSystemService(Service.SENSOR_SERVICE);
-        m_accelerometer = m_sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        m_sensorManager.registerListener(this, m_accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
+        SensorManager sensorManager = (SensorManager) context.getSystemService(Service.SENSOR_SERVICE);
+        Sensor accelerometer        = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
 
         m_listeners = new ArrayList<>();
+
+        m_lastRead0 = 0;
+        m_lastRead1 = 0;
+        m_lastRead2 = 0;
     }
 
 
@@ -85,13 +84,6 @@ public class ShakeSensor implements SensorEventListener {
 
 
 
-    public boolean isShaking()
-    {
-        return m_isShaking;
-    }
-
-
-
     public void registerListener(ShakeSensorListener listener)
     {
         m_listeners.add(listener);
@@ -99,14 +91,7 @@ public class ShakeSensor implements SensorEventListener {
 
 
 
-    public void unregisterListener(ShakeSensorListener listener)
-    {
-        m_listeners.remove(listener);
-    }
-
-
-
-    public void notifyListeners()
+    private void notifyListeners()
     {
         for (ShakeSensorListener listener : m_listeners)
         {

@@ -56,7 +56,8 @@ public class IngredientsAdapter extends RecyclerView.Adapter<IngredientsAdapter.
 
         private ImageView m_imageView;
 
-        ViewHolder(ImageView imageView) {
+        ViewHolder(ImageView imageView)
+        {
             super(imageView);
 
             m_imageView = imageView;

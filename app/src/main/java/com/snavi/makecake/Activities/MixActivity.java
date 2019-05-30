@@ -5,8 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageView;
 
 import com.snavi.makecake.R;
@@ -23,12 +23,10 @@ public class MixActivity extends AppCompatActivity implements ShakeSensorListene
     public static final String FINAL_PHOTO_KEY  = "final_photo";
     private static final int MIN_SHAKE_TIME     = 5000;
     private static final int ANIMATION_INTERVAL = 100;
-    private static final int SHOW_DURATION      = 4000;
 
 
     // fields ////////////////////////////////////////////////////////////////////////////////////
     private ArrayList<Integer> m_photos;
-    private ShakeSensor        m_shakeListener;
     private long               m_shakeStart;
     private boolean            m_isShaking;
     private int                m_finalPhoto;
@@ -44,14 +42,15 @@ public class MixActivity extends AppCompatActivity implements ShakeSensorListene
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mix);
 
-        Intent intent = getIntent();
-        m_photos = intent.getIntegerArrayListExtra(PHOTOS_KEY);
-        m_finalPhoto = intent.getIntExtra(FINAL_PHOTO_KEY, -1);
+        Intent intent   = getIntent();
+        m_photos        = intent.getIntegerArrayListExtra(PHOTOS_KEY);
+        m_finalPhoto    = intent.getIntExtra(FINAL_PHOTO_KEY, -1);
+        m_img           = findViewById(R.id.mix_img);
 
-        m_shakeListener = new ShakeSensor(this);
-        m_shakeListener.registerListener(this);
+        ShakeSensor shakeSensor = new ShakeSensor(this);
+        shakeSensor.registerListener(this);
 
-        m_img = findViewById(R.id.mix_img);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
 

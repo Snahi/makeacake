@@ -6,10 +6,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.WindowManager;
-
 import com.snavi.makecake.cooking.ChooseIngredientsView;
 import com.snavi.makecake.sensorListeners.ProximitySensorListener;
-
 import java.util.ArrayList;
 
 public class ChooseIngredientsActivity extends AppCompatActivity {
@@ -21,26 +19,20 @@ public class ChooseIngredientsActivity extends AppCompatActivity {
     public static final String FINAL_IMG_KEY   = "final_img_key";
 
 
-    // fields ////////////////////////////////////////////////////////////////////////////////////
-    private ProximitySensorListener m_proximitySensorListener;
-
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        m_proximitySensorListener = new ProximitySensorListener(this);
-
-        int[] screenDims = getScreenDimensions();
-
-        Intent intent = getIntent();
+        ProximitySensorListener proximitySensorListener = new ProximitySensorListener(this);
+        int[] screenDims               = getScreenDimensions();
+        Intent intent                  = getIntent();
         ArrayList<Integer> ingredients = intent.getIntegerArrayListExtra(INGREDIENTS_KEY);
         ArrayList<Integer> mixImages   = intent.getIntegerArrayListExtra(MIX_KEY);
         int finalImg = intent.getIntExtra(FINAL_IMG_KEY, -1);
 
         ChooseIngredientsView view = new ChooseIngredientsView(this, ingredients, mixImages,
-                screenDims[0], screenDims[1], m_proximitySensorListener, finalImg);
+                screenDims[0], screenDims[1], proximitySensorListener, finalImg);
 
         setContentView(view);
 
